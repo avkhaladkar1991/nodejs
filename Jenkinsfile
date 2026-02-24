@@ -1,3 +1,4 @@
+#Jenkinsfile for CI pipeline to build and push Docker image, then update Helm chart values and commit changes to GitHub
 pipeline {
     agent any
 
