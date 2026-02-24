@@ -1,20 +1,21 @@
-#Jenkinsfile for CI pipeline to build and push Docker image, then update Helm chart values and commit changes to GitHub
 pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "avkhaladkar1991/nodejs-devops-app:${BUILD_NUMBER}"
+        IMAGE_NAME = "avkhaladkar1991/nodejs-devops-app"
+        IMAGE_TAG  = "${BUILD_NUMBER}"
+        DOCKER_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
     }
 
     stages {
 
         stage('Checkout') {
-          steps {
-           git credentialsId: 'github-creds',
-            url: 'https://github.com/avkhaladkar1991/nodejs.git',
-            branch: 'main'
-      }
-    }
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github-creds',
+                    url: 'https://github.com/avkhaladkar1991/nodejs.git'
+            }
+        }
 
         stage('Build Docker Image') {
             steps {
@@ -22,25 +23,25 @@ pipeline {
             }
         }
 
-        stage('Docker Push') {
-         steps {
-           withCredentials([usernamePassword(
-            credentialsId: 'dockerhub-creds',
-            usernameVariable: 'DOCKER_USER',
-            passwordVariable: 'DOCKER_PASS'
-        )]) {
-          sh '''
-            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push ${IMAGE_NAME}:${IMAGE_TAG}
-          '''
+        stage('Docker Login & Push') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push $DOCKER_IMAGE
+                    '''
+                }
+            }
         }
-      }
-    }
 
         stage('Update Helm Values') {
             steps {
                 sh """
-                sed -i 's/tag:.*/tag: "${BUILD_NUMBER}"/' helm/nodejs-app/values.yaml
+                    sed -i 's/tag:.*/tag: "${IMAGE_TAG}"/' helm/nodejs-app/values.yaml
                 """
             }
         }
@@ -48,20 +49,18 @@ pipeline {
         stage('Commit & Push Helm Update') {
             steps {
                 withCredentials([usernamePassword(
-                 credentialsId: 'github-creds',
-                 usernameVariable: 'GIT_USER',
-                 passwordVariable: 'GIT_TOKEN'
-        )])
-                sh """
-                 git config user.email "jenkins@ci.com"
-                 git config user.name "jenkins"
-                 git add .
-                 git commit -am "CI: update image tag ${IMAGE_TAG}" || true
-                 git push
-                """
-                git credentialsId: 'github-creds',
-                url: 'https://github.com/avkhaladkar1991/nodejs.git',
-                branch: 'main'
+                    credentialsId: 'github-creds',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_TOKEN'
+                )]) {
+                    sh """
+                        git config user.email "jenkins@ci.com"
+                        git config user.name "jenkins"
+                        git add helm/nodejs-app/values.yaml
+                        git commit -m "CI: update image tag ${IMAGE_TAG}" || true
+                        git push https://${GIT_USER}:${GIT_TOKEN}@github.com/avkhaladkar1991/nodejs.git HEAD:main
+                    """
+                }
             }
         }
     }
