@@ -41,7 +41,7 @@ pipeline {
         stage('Update Helm Values') {
             steps {
                 sh """
-                    sed -i 's/tag:.*/tag: "${IMAGE_TAG}"/' helm/nodejs-app/values.yaml
+                    sed -i '' 's/tag:.*/tag: "${IMAGE_TAG}"/' helm/nodejs-app/values.yaml
                 """
             }
         }
