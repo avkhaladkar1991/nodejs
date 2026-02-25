@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: yourdockerhub/nodejs-devops-app
+  repository: avkhaladkar1991/nodejs-devops-app
   tag: "2"
   pullPolicy: IfNotPresent
 
